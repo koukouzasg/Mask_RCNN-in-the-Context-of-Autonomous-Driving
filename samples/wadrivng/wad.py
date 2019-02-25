@@ -174,7 +174,7 @@ class WadInferenceConfig(WadConfig):
     GPU_COUNT = 1
     IMAGES_PER_GPU = 1
     # Don't resize imager for inferencing
-    IMAGE_RESIZE_MODE = "pad64"
+    IMAGE_RESIZE_MODE = "square"
     # Non-max suppression threshold to filter RPN proposals.
     # You can increase this during training to generate more proposals
     RPN_NMS_THRESHOLD = 0.7
@@ -296,6 +296,14 @@ def train(model, dataset_dir, subset):
     dataset_val.load_wad(dataset_dir, "val")
     dataset_val.prepare()
 
+    # Preparing mAP Callback 
+    model_inference = modellib.MaskRCNN(mode="inference", 
+                                        config=WadInferenceConfig(),
+                                        model_dir=DEFAULT_LOGS_DIR)
+    mean_average_precision_callback = modellib.MeanAveragePrecisionCallback(model, model_inference, 
+                                                                            dataset_val, 4, verbose=1)
+
+
     # Image augmentation
     # http://imgaug.readthedocs.io/en/latest/source/augmenters.html
     augmentation = iaa.SomeOf((0, 2), [
@@ -313,7 +321,9 @@ def train(model, dataset_dir, subset):
                 learning_rate=config.LEARNING_RATE,
                 augmentation=None,
                 epochs=40,
-                layers='heads')
+                layers='heads',
+                custom_callbacks=[mean_average_precision_callback])
+
     
 
 
