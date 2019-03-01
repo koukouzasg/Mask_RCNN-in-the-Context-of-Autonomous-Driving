@@ -417,7 +417,7 @@ def train(model, dataset_dir, subset):
 ############################################################
 #  RLE Encoding
 ############################################################
-"""
+
 def rle_encode(mask):
      """Encodes a mask in Run Length Encoding (RLE).
     Returns a string of space-separated values.
@@ -474,7 +474,7 @@ def mask_to_rle(image_id, mask, scores):
         rle = rle_encode(m)
         lines.append("{}, {}".format(image_id, rle))
      return "\n".join(lines)
-"""    
+    
 
 ############################################################
 #  Command Line
