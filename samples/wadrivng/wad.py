@@ -260,7 +260,7 @@ class MeanAveragePrecisionCallback(Callback):
         np.random.shuffle(self.dataset_image_ids)
 
         for image_id in self.dataset_image_ids[:self.dataset_limit]:
-            image, image_meta, gt_class_id, gt_bbox, gt_mask = modellib.load_image_gt(self.dataset, self.inference_model.config,
+            image, image_meta, gt_class_id, gt_bbox, gt_mask = load_image_gt(self.dataset, self.inference_model.config,
                                                                              image_id, use_mini_mask=False)
             results = self.inference_model.detect([image], verbose=0)
             r = results[0]
@@ -419,7 +419,7 @@ def train(model, dataset_dir, subset):
 ############################################################
 
 def rle_encode(mask):
-     """Encodes a mask in Run Length Encoding (RLE).
+    """Encodes a mask in Run Length Encoding (RLE).
     Returns a string of space-separated values.
     """
     assert mask.ndim == 2, "Mask must be of shape [Height, Width]"
@@ -473,7 +473,7 @@ def mask_to_rle(image_id, mask, scores):
             continue
         rle = rle_encode(m)
         lines.append("{}, {}".format(image_id, rle))
-     return "\n".join(lines)
+    return "\n".join(lines)
     
 
 ############################################################
