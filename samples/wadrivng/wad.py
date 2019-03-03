@@ -260,7 +260,7 @@ class MeanAveragePrecisionCallback(Callback):
         np.random.shuffle(self.dataset_image_ids)
 
         for image_id in self.dataset_image_ids[:self.dataset_limit]:
-            image, image_meta, gt_class_id, gt_bbox, gt_mask = load_image_gt(self.dataset, self.inference_model.config,
+            image, image_meta, gt_class_id, gt_bbox, gt_mask = modellib.load_image_gt(self.dataset, self.inference_model.config,
                                                                              image_id, use_mini_mask=False)
             results = self.inference_model.detect([image], verbose=0)
             r = results[0]
@@ -388,11 +388,12 @@ def train(model, dataset_dir, subset):
     dataset_val.prepare()
 
     # Preparing mAP Callback 
+	"""
     model_inference = modellib.MaskRCNN(mode="inference", 
                                         config=WadInferenceConfig(),
                                         model_dir=DEFAULT_LOGS_DIR)
     mean_average_precision_callback = MeanAveragePrecisionCallback(model, model_inference, dataset_val, 1, verbose=1)
-
+    """
 
     # Image augmentation
     # http://imgaug.readthedocs.io/en/latest/source/augmenters.html
@@ -411,8 +412,8 @@ def train(model, dataset_dir, subset):
                 learning_rate=config.LEARNING_RATE,
                 augmentation=None,
                 epochs=40,
-                layers='heads',
-                custom_callbacks=[mean_average_precision_callback])
+                layers='heads')
+                # custom_callbacks=[mean_average_precision_callback])
 
 ############################################################
 #  RLE Encoding
