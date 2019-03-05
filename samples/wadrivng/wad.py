@@ -73,6 +73,8 @@ label_to_name = {33: 'car',
 
 label_to_class = {33:1, 34:2, 35:3, 36:4, 38:5, 39:6, 40:7}
 
+class_to_label = {1:33, 2:34, 3:35, 4:36, 5:38, 6:39, 7:40}
+
 ############################################################
 #  Set CUDA Variables
 ############################################################
@@ -313,9 +315,11 @@ class WadDataset(utils.Dataset):
         # test : use the /data/test dir      
         assert subset in ["train","val", "test"]
 
+        image_dir = ""
         if subset == "test":
             dataset_dir = os.path.join(dataset_dir, subset)
             image_ids = next(os.walk(dataset_dir))[2]
+            image_dir = dataset_dir
         else:
             dataset_dir = os.path.join(dataset_dir, "train_val")
             if subset == "val":
@@ -388,7 +392,7 @@ def train(model, dataset_dir, subset):
     dataset_val.prepare()
 
     # Preparing mAP Callback 
-	"""
+    """
     model_inference = modellib.MaskRCNN(mode="inference", 
                                         config=WadInferenceConfig(),
                                         model_dir=DEFAULT_LOGS_DIR)
@@ -432,14 +436,17 @@ def rle_encode(mask):
     rle = np.where(g != 0)[0].reshape([-1, 2]) + 1
     # Convert second index in each pair to lenth
     rle[:, 1] = rle[:, 1] - rle[:, 0]
-    return " ".join(map(str, rle.flatten()))
+    rle_string = ""
+    for n in range(len(rle)):
+        rle_string += "{} {}|".format(rle[n, 0],rle[n, 1])
+    return rle_string
 
 
 def rle_decode(rle, shape):
     """Decodes an RLE encoded list of space separated
     numbers and returns a binary mask."""
 
-    rle = list(map(int, rle.split()))
+    rle = list(map(int, rle.split("|")))
     rle = np.array(rle, dtype=np.int32).reshape([-1, 2])
     rle[:, 1] += rle[:, 0]
     rle -= 1
@@ -453,9 +460,8 @@ def rle_decode(rle, shape):
     return mask
 
 
-def mask_to_rle(image_id, mask, scores):
-	# Encodes instance masks to submission format.
-
+def mask_to_rle(image_id, mask, scores, class_ids):
+    "Encodes instance masks to submission format."
     assert mask.ndim == 3, "Mask must be [H, W, count]"
     # If mask is empty, return line with image ID only
     if mask.shape[-1] == 0:
@@ -467,15 +473,70 @@ def mask_to_rle(image_id, mask, scores):
     mask = np.max(mask * np.reshape(order, [1, 1, -1]), -1)
     # Loop over instance masks
     lines = []
+    # Convert Class ids to Label ids
+    label_ids = []
+    for class_id in class_ids:
+        if class_id in class_to_label.keys():
+            label_ids.append(class_to_label.get(class_id))
+    # Extract the info needed for kaggle submission
     for o in order:
         m = np.where(mask == o, 1, 0)
+        confidence = scores[o-1]
+        label_id = label_ids[o-1]
         # Skip if empty
         if m.sum() == 0.0:
             continue
+        else:
+            pixel_count = m.sum()
         rle = rle_encode(m)
-        lines.append("{}, {}".format(image_id, rle))
+        lines.append("{}, {}, {}, {}, {}".format(image_id, label_id,
+                                                 confidence, pixel_count, rle))
     return "\n".join(lines)
     
+############################################################
+#  Detection
+############################################################
+
+def detect(model, dataset_dir, subset):
+    """Run detection on images in the given directory."""
+    print("Running on {}".format(dataset_dir))
+    
+    # Create directory
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR)
+    submit_dir = "submit_{:%Y%m%dT%H%M%S}".format(datetime.datetime.now())
+    submit_dir = os.path.join(RESULTS_DIR, submit_dir)
+    os.makedirs(submit_dir)
+
+    # Read dataset
+    dataset = WadDataset()
+    dataset.load_wad(dataset_dir, subset)
+    dataset.prepare()
+    # Load over images
+    submission = []
+    for image_id in dataset.image_ids:
+        # Load image and run detection
+        image = dataset.load_image(image_id)
+        # Detect objects 
+        r = model.detect([image], verbose=0)[0]
+        # Encode image to RLE. Returns a string of multiple lines
+        source_id = dataset.image_info[image_id]["id"]
+        rle = mask_to_rle(source_id, r["masks"], r["sources"], r["class_ids"])
+        submission.append(rle)
+        # Save image with masks
+        visualize.display_instances(
+            image, r['rois'], r['masks'], r['class_ids'],
+            dataset.class_names, r['scores'],
+            show_bbox=True, show_mask=True,
+            title="Predictions")
+        plt.savefig("{}/{}.png".format(submit_dir, dataset.image_info[image_id]["id"]))
+
+    submission = "ImageId,LabelId,Confidence,PixelCount,EncodedPixels\n" + "\n".join(submission)
+    file_path = os.path.join(submit_dir, "submit.csv")
+    with open(file_path, "w") as f:
+        f.write(submission)
+    print("Saved to ", submit_dir)
+
 
 ############################################################
 #  Command Line
