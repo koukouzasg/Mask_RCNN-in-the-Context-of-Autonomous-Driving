@@ -338,9 +338,10 @@ class WadDataset(utils.Dataset):
 
         # Add the images from the given directory
         for image_id in image_ids:
+            image_name = image_id[:-4]
             self.add_image(
                 "wad",
-                image_id=image_id,
+                image_id=image_name,
                 path=os.path.join(image_dir, image_id))
 
     def load_mask(self, image_id):
