@@ -79,7 +79,7 @@ class_to_label = {1:33, 2:34, 3:35, 4:36, 5:38, 6:39, 7:40}
 #  Set CUDA Variables
 ############################################################
 
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
@@ -411,7 +411,7 @@ def train(model, dataset_dir, subset):
         iaa.Multiply((0.8, 1.5)),
         iaa.GaussianBlur(sigma=(0.0, 5.0))
     ])
-
+    
     print("Training network heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
@@ -419,7 +419,14 @@ def train(model, dataset_dir, subset):
                 epochs=40,
                 layers='heads')
                 # custom_callbacks=[mean_average_precision_callback])
-
+    '''
+    print("Training all layers")
+    model.train(dataset_train, dataset_val,
+                learning_rate=config.LEARNING_RATE / 10,
+                epochs=160,
+                layers='all',
+                augmentation=None)
+    '''
 ############################################################
 #  RLE Encoding
 ############################################################
@@ -515,6 +522,10 @@ def detect(model, dataset_dir, subset):
     dataset.prepare()
     # Load over images
     submission = []
+    submission = "ImageId,LabelId,Confidence,PixelCount,EncodedPixels\n"
+    file_path = os.path.join(ROOT_DIR, "submit.csv")
+    f = open(file_path, "w")
+    f.write(submission)
     for image_id in dataset.image_ids:
         # Load image and run detection
         image = dataset.load_image(image_id)
@@ -522,8 +533,10 @@ def detect(model, dataset_dir, subset):
         r = model.detect([image], verbose=0)[0]
         # Encode image to RLE. Returns a string of multiple lines
         source_id = dataset.image_info[image_id]["id"]
+        print("Name of image being processed is {}".format(source_id))
         rle = mask_to_rle(source_id, r["masks"], r["scores"], r["class_ids"])
-        submission.append(rle)
+        # submission.append(rle)
+        f.write(rle)
         # Save image with masks
         visualize.display_instances(
             image, r['rois'], r['masks'], r['class_ids'],
@@ -532,12 +545,14 @@ def detect(model, dataset_dir, subset):
             title="Predictions")
         plt.savefig("{}/{}.png".format(submit_dir, dataset.image_info[image_id]["id"]))
 
+    '''
     submission = "ImageId,LabelId,Confidence,PixelCount,EncodedPixels\n" + "\n".join(submission)
     file_path = os.path.join(submit_dir, "submit.csv")
     with open(file_path, "w") as f:
         f.write(submission)
+    '''
     print("Saved to ", submit_dir)
-
+    f.close()
 
 ############################################################
 #  Command Line
