@@ -320,6 +320,7 @@ class WadDataset(utils.Dataset):
             dataset_dir = os.path.join(dataset_dir, subset)
             image_ids = next(os.walk(dataset_dir))[2]
             image_dir = dataset_dir
+            image_ids.sort()
         else:
             dataset_dir = os.path.join(dataset_dir, "train_val")
             if subset == "val":
@@ -544,7 +545,7 @@ def detect(model, dataset_dir, subset):
             show_bbox=True, show_mask=True,
             title="Predictions")
         plt.savefig("{}/{}.png".format(submit_dir, dataset.image_info[image_id]["id"]))
-
+        plt.close("all")
     '''
     submission = "ImageId,LabelId,Confidence,PixelCount,EncodedPixels\n" + "\n".join(submission)
     file_path = os.path.join(submit_dir, "submit.csv")
