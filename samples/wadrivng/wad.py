@@ -522,7 +522,6 @@ def detect(model, dataset_dir, subset):
     dataset.load_wad(dataset_dir, subset)
     dataset.prepare()
     # Load over images
-    submission = []
     submission = "ImageId,LabelId,Confidence,PixelCount,EncodedPixels\n"
     file_path = os.path.join(ROOT_DIR, "submit.csv")
     f = open(file_path, "w")
@@ -542,9 +541,8 @@ def detect(model, dataset_dir, subset):
         visualize.display_instances(
             image, r['rois'], r['masks'], r['class_ids'],
             dataset.class_names, r['scores'],
-            show_bbox=True, show_mask=True,
-            title="Predictions")
-        plt.savefig("{}/{}.png".format(submit_dir, dataset.image_info[image_id]["id"]))
+            show_bbox=True, show_mask=True)
+        plt.savefig("{}/{}.png".format(submit_dir, dataset.image_info[image_id]["id"]), bbox_inches='tight', pad_inches=0.0)
         plt.close("all")
     '''
     submission = "ImageId,LabelId,Confidence,PixelCount,EncodedPixels\n" + "\n".join(submission)
