@@ -79,7 +79,7 @@ class_to_label = {1:33, 2:34, 3:35, 4:36, 5:38, 6:39, 7:40}
 #  Set CUDA Variables
 ############################################################
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="1"
 
 from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
@@ -474,7 +474,8 @@ def mask_to_rle(image_id, mask, scores, class_ids):
     assert mask.ndim == 3, "Mask must be [H, W, count]"
     # If mask is empty, return line with image ID only
     if mask.shape[-1] == 0:
-        return "{},".format(image_id)
+        #return "{},\n".format(image_id)
+        return ""
     # Remove mask overlaps
     # Multiply each instance mask by its score order
     # then take the maximum across the last dimension
@@ -498,9 +499,9 @@ def mask_to_rle(image_id, mask, scores, class_ids):
         else:
             pixel_count = m.sum()
         rle = rle_encode(m)
-        lines.append("{}, {}, {}, {}, {}".format(image_id, label_id,
+        lines.append("{},{},{:4.3f},{},{}\n".format(image_id, label_id,
                                                  confidence, pixel_count, rle))
-    return "\n".join(lines)
+    return "".join(lines)
     
 ############################################################
 #  Detection
@@ -537,6 +538,7 @@ def detect(model, dataset_dir, subset):
         rle = mask_to_rle(source_id, r["masks"], r["scores"], r["class_ids"])
         # submission.append(rle)
         f.write(rle)
+        ''' 
         # Save image with masks
         visualize.display_instances(
             image, r['rois'], r['masks'], r['class_ids'],
@@ -544,12 +546,7 @@ def detect(model, dataset_dir, subset):
             show_bbox=True, show_mask=True)
         plt.savefig("{}/{}.png".format(submit_dir, dataset.image_info[image_id]["id"]), bbox_inches='tight', pad_inches=0.0)
         plt.close("all")
-    '''
-    submission = "ImageId,LabelId,Confidence,PixelCount,EncodedPixels\n" + "\n".join(submission)
-    file_path = os.path.join(submit_dir, "submit.csv")
-    with open(file_path, "w") as f:
-        f.write(submission)
-    '''
+        ''' 
     print("Saved to ", submit_dir)
     f.close()
 
