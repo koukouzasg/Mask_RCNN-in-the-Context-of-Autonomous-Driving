@@ -42,7 +42,7 @@ import skimage.io
 from pathlib import Path
 from imgaug import augmenters as iaa # https://github.com/aleju/imgaug (pip3 install imgaug)
 import tensorflow as tf
-from keras.callbacks import Callback
+from mAP_callback import MeanAveragePrecisionCallback as mAP_callback
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("/home/koukouzas/CODE/Mask_RCNN")
@@ -62,8 +62,7 @@ COCO_WEIGHTS_PATH = os.path.join(ROOT_DIR, "mask_rcnn_coco.h5")
 DEFAULT_LOGS_DIR = os.path.join(ROOT_DIR, "logs")
 
 
-# Results directory
-# Save submission files here
+# Results directory-Save submission files here
 RESULTS_DIR = os.path.join(ROOT_DIR, "results/wad/")
 
 # Define the objects of the dataset
@@ -94,11 +93,9 @@ config.gpu_options.allow_growth = True
 sess = tf.Session(config=config)
 set_session(sess)
 
-
 ############################################################
 #  Configurations
 ############################################################
-
 
 class WadConfig(Config):
     """Configuration for training on the kaggle 
@@ -183,71 +180,6 @@ class WadInferenceConfig(WadConfig):
     # You can increase this during training to generate more proposals
     RPN_NMS_THRESHOLD = 0.7
 
-    
-############################################################
-#  Custom Callbacks
-############################################################
-
-'''
-This current implementation calculates the average precision for every image 
-and then takes the mean of the values. But in papers they calculate the average precision per class and then calculates the mean of the class-wise values.
-'''
-
-
-class MeanAveragePrecisionCallback(Callback):
-    def __init__(self, train_model: modellib.MaskRCNN, inference_model: modellib.MaskRCNN, dataset: utils.Dataset,
-                 calculate_at_every_X_epoch: int = 3, dataset_limit: int = None,
-                 verbose: int = 1):
-        """
-        Callback which calculates the mAP on the defined test/validation dataset
-        :param train_model: Mask RCNN model in training mode
-        :param inference_model: Mask RCNN model in inference mode
-        :param dataset: test/validation dataset, it will calculate the mAP on this set
-        :param calculate_at_every_X_epoch: With this parameter we can define if we want to do the calculation at
-        every epoch or every second, etc...
-        :param dataset_limit: When we have a huge dataset calculation can take a lot of time, with this we can set a
-        limit to the number of data points used
-        :param verbose: set verbosity (1 = verbose, 0 = quiet)
-        """
-
-        super().__init__()
-
-        if train_model.mode != "training":
-            raise ValueError("Train model should be in training mode, instead it is in: {0}".format(train_model.mode))
-
-        if inference_model.mode != "inference":
-            raise ValueError(
-                "Inference model should be in inference mode, instead it is in: {0}".format(train_model.mode))
-
-        if inference_model.config.BATCH_SIZE != 1:
-            raise ValueError("This callback only works with the bacth size of 1, instead: {0} was defined".format(
-                inference_model.config.BATCH_SIZE))
-
-        self.train_model = train_model
-        self.inference_model = inference_model
-        self.dataset = dataset
-        self.calculate_at_every_X_epoch = calculate_at_every_X_epoch
-        self.dataset_limit = len(self.dataset.image_ids)
-        if dataset_limit is not None:
-            self.dataset_limit = dataset_limit
-        self.dataset_image_ids = self.dataset.image_ids.copy()
-
-        self._verbose_print = print if verbose > 0 else lambda *a, **k: None
-
-    def on_epoch_end(self, epoch, logs=None):
-        if epoch > 0 and epoch % self.calculate_at_every_X_epoch == 0:
-            self._verbose_print("Calculating mAP...")
-            self._load_weights_for_model()
-
-            mAPs = self._calculate_mean_average_precision()
-            mAP = np.mean(mAPs)
-
-            if logs is not None:
-                logs["val_mean_average_precision"] = mAP
-
-            self._verbose_print("mAP at epoch {0} is: {1}".format(epoch, mAP))
-
-        super().on_epoch_end(epoch, logs)
 
     def _load_weights_for_model(self):
         last_weights_path = self.train_model.find_last()
@@ -394,12 +326,12 @@ def train(model, dataset_dir, subset):
     dataset_val.prepare()
 
     # Preparing mAP Callback 
-    """
+
     model_inference = modellib.MaskRCNN(mode="inference", 
                                         config=WadInferenceConfig(),
                                         model_dir=DEFAULT_LOGS_DIR)
-    mean_average_precision_callback = MeanAveragePrecisionCallback(model, model_inference, dataset_val, 1, verbose=1)
-    """
+    mean_average_precision_callback = mAP_callback(model, model_inference, dataset_val, 1, verbose=1)
+
 
     # Image augmentation
     # http://imgaug.readthedocs.io/en/latest/source/augmenters.html
@@ -418,8 +350,8 @@ def train(model, dataset_dir, subset):
                 learning_rate=config.LEARNING_RATE,
                 augmentation=None,
                 epochs=40,
-                layers='heads')
-                # custom_callbacks=[mean_average_precision_callback])
+                layers='heads',#)
+                custom_callbacks=[mean_average_precision_callback])
     '''
     print("Training all layers")
     model.train(dataset_train, dataset_val,
