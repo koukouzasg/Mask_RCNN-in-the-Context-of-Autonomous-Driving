@@ -69,3 +69,28 @@ class MeanAveragePrecisionCallback(Callback):
             self._verbose_print("mAP at epoch {0} is: {1}".format(epoch, mAP))
 
         super().on_epoch_end(epoch, logs)
+
+
+    def _load_weights_for_model(self):
+        last_weights_path = self.train_model.find_last()
+        self._verbose_print("Loaded weights for the inference model (last checkpoint of the train model): {0}".format(
+            last_weights_path))
+        self.inference_model.load_weights(last_weights_path,
+                                          by_name=True)
+
+    def _calculate_mean_average_precision(self):
+        mAPs = []
+
+        np.random.shuffle(self.dataset_image_ids)
+
+        for image_id in self.dataset_image_ids[:self.dataset_limit]:
+            image, image_meta, gt_class_id, gt_bbox, gt_mask = utils.load_image_gt(self.dataset, self.inference_model.config,
+                                                                             image_id, use_mini_mask=False)
+            results = self.inference_model.detect([image], verbose=0)
+            r = results[0]
+            # Compute mAP - VOC uses IoU 0.5
+            AP, _, _, _ = utils.compute_ap(gt_bbox, gt_class_id, gt_mask, r["rois"],
+                                           r["class_ids"], r["scores"], r['masks'])
+            mAPs.append(AP)
+
+        return np.array(mAPs)
