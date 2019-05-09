@@ -84,7 +84,7 @@ class MeanAveragePrecisionCallback(Callback):
         np.random.shuffle(self.dataset_image_ids)
 
         for image_id in self.dataset_image_ids[:self.dataset_limit]:
-            image, image_meta, gt_class_id, gt_bbox, gt_mask = utils.load_image_gt(self.dataset, self.inference_model.config,
+            image, image_meta, gt_class_id, gt_bbox, gt_mask = modellib.load_image_gt(self.dataset, self.inference_model.config,
                                                                              image_id, use_mini_mask=False)
             results = self.inference_model.detect([image], verbose=0)
             r = results[0]
