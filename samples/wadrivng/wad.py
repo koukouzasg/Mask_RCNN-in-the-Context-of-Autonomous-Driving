@@ -84,7 +84,7 @@ from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
 
 # Dynamically grow the memory used on the GPU
-config.gpu_options.allow_growth = True
+# config.gpu_options.allow_growth = True
 
 # To log device placement (on which device the operation ran)
 # config.log_device_placement = True
@@ -179,31 +179,6 @@ class WadInferenceConfig(WadConfig):
     # Non-max suppression threshold to filter RPN proposals.
     # You can increase this during training to generate more proposals
     RPN_NMS_THRESHOLD = 0.7
-
-
-    def _load_weights_for_model(self):
-        last_weights_path = self.train_model.find_last()
-        self._verbose_print("Loaded weights for the inference model (last checkpoint of the train model): {0}".format(
-            last_weights_path))
-        self.inference_model.load_weights(last_weights_path,
-                                          by_name=True)
-
-    def _calculate_mean_average_precision(self):
-        mAPs = []
-
-        np.random.shuffle(self.dataset_image_ids)
-
-        for image_id in self.dataset_image_ids[:self.dataset_limit]:
-            image, image_meta, gt_class_id, gt_bbox, gt_mask = modellib.load_image_gt(self.dataset, self.inference_model.config,
-                                                                             image_id, use_mini_mask=False)
-            results = self.inference_model.detect([image], verbose=0)
-            r = results[0]
-            # Compute mAP - VOC uses IoU 0.5
-            AP, _, _, _ = utils.compute_ap(gt_bbox, gt_class_id, gt_mask, r["rois"],
-                                           r["class_ids"], r["scores"], r['masks'])
-            mAPs.append(AP)
-
-        return np.array(mAPs)
 
 
 ############################################################
@@ -326,12 +301,12 @@ def train(model, dataset_dir, subset):
     dataset_val.prepare()
 
     # Preparing mAP Callback 
-
+    '''
     model_inference = modellib.MaskRCNN(mode="inference", 
                                         config=WadInferenceConfig(),
                                         model_dir=DEFAULT_LOGS_DIR)
     mean_average_precision_callback = mAP_callback(model, model_inference, dataset_val, 1, verbose=1)
-
+    '''
 
     # Image augmentation
     # http://imgaug.readthedocs.io/en/latest/source/augmenters.html
@@ -350,8 +325,8 @@ def train(model, dataset_dir, subset):
                 learning_rate=config.LEARNING_RATE,
                 augmentation=None,
                 epochs=40,
-                layers='heads',#)
-                custom_callbacks=[mean_average_precision_callback])
+                layers='heads')
+                #custom_callbacks=[mean_average_precision_callback])
     '''
     print("Training all layers")
     model.train(dataset_train, dataset_val,
@@ -470,7 +445,7 @@ def detect(model, dataset_dir, subset):
         rle = mask_to_rle(source_id, r["masks"], r["scores"], r["class_ids"])
         # submission.append(rle)
         f.write(rle)
-        ''' 
+         
         # Save image with masks
         visualize.display_instances(
             image, r['rois'], r['masks'], r['class_ids'],
@@ -478,7 +453,7 @@ def detect(model, dataset_dir, subset):
             show_bbox=True, show_mask=True)
         plt.savefig("{}/{}.png".format(submit_dir, dataset.image_info[image_id]["id"]), bbox_inches='tight', pad_inches=0.0)
         plt.close("all")
-        ''' 
+        
     print("Saved to ", submit_dir)
     f.close()
 
@@ -564,7 +539,7 @@ if __name__ == '__main__':
     else:
         model.load_weights(weights_path, by_name=True)
     
-	# Train or evaluate
+    # Train or evaluate
     if args.command == "train":
         train(model, args.dataset, args.subset)
     elif args.command == "detect":
