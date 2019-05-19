@@ -15,7 +15,7 @@ import wad
 MODEL_DIR = os.path.join(ROOT_DIR, "logs")
 
 # Local path to trained weights file
-WAD_MODEL_PATH = os.path.join(ROOT_DIR, "models/mask_rcnn_wad_0040.h5")
+WAD_MODEL_PATH = os.path.join(ROOT_DIR, "models/mask_rcnn_wad_0160_resnet50.h5")
 
 # Directory of images to run detection on
 IMAGE_DIR = os.path.join(ROOT_DIR, "data")
@@ -37,12 +37,17 @@ model = modellib.MaskRCNN(mode="inference", config=config,
 
 print("Loading weights", WAD_MODEL_PATH)
 model.load_weights(WAD_MODEL_PATH, by_name=True)
+#model.load_weights(WAD_MODEL_PATH, by_name=True, exclude=[
+#            "mrcnn_class_logits", "mrcnn_bbox_fc",
+#"mrcnn_bbox", "mrcnn_mask"])
 
 # Compute VOC-style Average Precision
 image_ids = dataset.image_ids
 APs = []
+count = 0
 for image_id in image_ids:
     # Load image
+    print(image_id)
     image, image_meta, gt_class_id, gt_bbox, gt_mask =\
         modellib.load_image_gt(dataset, config,
                                image_id, use_mini_mask=False)
@@ -53,5 +58,8 @@ for image_id in image_ids:
     AP, precisions, recalls, overlaps =\
         utils.compute_ap(gt_bbox, gt_class_id, gt_mask,
                           r['rois'], r['class_ids'], r['scores'], r['masks'])
+    if(np.isnan(AP)):
+        continue
     APs.append(AP)
+    print(AP)
 print("mAP @ IoU=50: ", np.mean(APs))
