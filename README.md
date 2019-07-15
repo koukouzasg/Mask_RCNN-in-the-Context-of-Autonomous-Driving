@@ -6,3 +6,5 @@ https://www.kaggle.com/c/cvpr-2018-autonomous-driving
 
 Although the thesis is complete, this repo still needs some cleaning before it can be considered complete.
 
+Example video shown in the following link : https://youtu.be/Rpwl5fUMm5s
+
